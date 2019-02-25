@@ -1,0 +1,14 @@
+version: 2.1
+orbs:
+  gradle: circleci/gradle@1.0.9
+executors:
+  jdk8:
+    docker:
+      - image: openjdk:8-jdk
+workflows:
+  checkout-build-test:
+    jobs:
+      - gradle/test:
+          executor: jdk8
+          test_results_path: build/test-results
+          reports_path: build/reports
