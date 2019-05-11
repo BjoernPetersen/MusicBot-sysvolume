@@ -1,10 +1,9 @@
 package net.bjoernpetersen.musicbot.sysvolume
 
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
-import java.util.concurrent.locks.Lock
-import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.thread
-import kotlin.concurrent.withLock
 
 internal class GetVolume(
     command: List<String>,
@@ -16,19 +15,22 @@ internal class GetVolume(
 
     private val process = ProcessBuilder(command).start()
 
-    private val lock: Lock = ReentrantLock()
-    private lateinit var output: String
+    private val result = CompletableDeferred<Int>()
 
     init {
         thread(name = "GetVolume-error", isDaemon = true) {
             process.errorStream.bufferedReader().forEachLine {}
         }
-        val started = lock.newCondition()
-        lock.withLock {
+        runBlocking {
+            val started = CompletableDeferred<Unit>()
             thread(name = "GetVolume-out") {
-                lock.withLock {
-                    started.signal()
-                    output = process.inputStream.bufferedReader().readText()
+                started.complete(Unit)
+                val output = process.inputStream.bufferedReader().readText()
+                try {
+                    val parsed = parse(output)
+                    result.complete(parsed)
+                } catch (e: IllegalStateException) {
+                    result.completeExceptionally(e)
                 }
             }
             started.await()
@@ -40,21 +42,15 @@ internal class GetVolume(
             .find(output)
             ?.groupValues
             ?.getOrNull(1)
-            ?: throw IllegalStateException()
+            ?: throw IllegalStateException("No pattern match in output: $output")
 
         logger.debug { "GetVolume match: $value" }
 
         return valueMode.toPercent(value)
     }
 
-    fun get(): Int {
-        lock.withLock {
-            return try {
-                parse(output)
-            } catch (e: NumberFormatException) {
-                throw IllegalStateException(e)
-            }
-        }
+    suspend fun get(): Int {
+        return result.await()
     }
 }
 
@@ -67,29 +63,25 @@ private fun buildProcess(command: List<String>, valueMode: ValueMode, volume: In
 internal class SetVolume(command: List<String>, valueMode: ValueMode, volume: Int) {
 
     private val process = buildProcess(command, valueMode, volume)
-
-    private val lock: Lock = ReentrantLock()
+    private val exitCode = CompletableDeferred<Int>()
 
     init {
         thread(name = "SetVolume-error", isDaemon = true) {
             process.errorStream.bufferedReader().forEachLine {}
         }
-        val started = lock.newCondition()
-        lock.withLock {
+        runBlocking {
+            val started = CompletableDeferred<Unit>()
             thread(name = "SetVolume-out") {
-                lock.withLock {
-                    started.signal()
-                    process.inputStream.bufferedReader().forEachLine {}
-                }
+                started.complete(Unit)
+                process.inputStream.bufferedReader().forEachLine {}
+                exitCode.complete(process.exitValue())
             }
             started.await()
         }
     }
 
-    fun await(): Boolean {
-        lock.withLock {
-            return process.exitValue() == 0
-        }
+    suspend fun await(): Boolean {
+        return exitCode.await() == 0
     }
 }
 

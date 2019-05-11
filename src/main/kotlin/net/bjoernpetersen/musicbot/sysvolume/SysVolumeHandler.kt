@@ -1,16 +1,24 @@
 package net.bjoernpetersen.musicbot.sysvolume
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import net.bjoernpetersen.musicbot.api.config.ChoiceBox
 import net.bjoernpetersen.musicbot.api.config.Config
 import net.bjoernpetersen.musicbot.api.config.NonnullConfigChecker
 import net.bjoernpetersen.musicbot.api.config.TextBox
 import net.bjoernpetersen.musicbot.spi.plugin.management.InitStateWriter
 import net.bjoernpetersen.musicbot.spi.plugin.volume.VolumeHandler
+import kotlin.coroutines.CoroutineContext
 
-class SysVolumeHandler : VolumeHandler {
+class SysVolumeHandler : VolumeHandler, CoroutineScope {
     override val name: String = "System master volume control"
     override val description: String = "Controls the system's master volume by calling" +
         " a custom command."
+
+    private val job = Job()
+    override val coroutineContext: CoroutineContext
+        get() = Dispatchers.IO + job
 
     private lateinit var valueMode: Config.SerializedEntry<ValueMode>
 
@@ -57,18 +65,22 @@ class SysVolumeHandler : VolumeHandler {
         return split(" ")
     }
 
-    override var volume: Int
-        get() = GetVolume(
+    override suspend fun getVolume(): Int {
+        return GetVolume(
             getCommand.get()!!.toCommandList(),
             getPattern.get()!!,
             valueMode.get()!!
         ).get()
-        set(value) {
-            SetVolume(setCommand.get()!!.toCommandList(), valueMode.get()!!, value).await()
-        }
+    }
+
+    override suspend fun setVolume(value: Int) {
+        SetVolume(setCommand.get()!!.toCommandList(), valueMode.get()!!, value).await()
+    }
 
     override fun createSecretEntries(secrets: Config): List<Config.Entry<*>> = emptyList()
     override fun createStateEntries(state: Config) {}
-    override fun initialize(initStateWriter: InitStateWriter) {}
-    override fun close() {}
+    override suspend fun initialize(initStateWriter: InitStateWriter) {}
+    override suspend fun close() {
+        job.cancel()
+    }
 }
