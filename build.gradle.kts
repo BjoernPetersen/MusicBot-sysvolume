@@ -1,11 +1,11 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
+    id("com.diffplug.gradle.spotless") version Plugin.SPOTLESS
+
     id("com.github.ben-manes.versions") version Plugin.VERSIONS
 
     kotlin("jvm") version Plugin.KOTLIN
-
-    id("com.github.spotbugs") version Plugin.SPOTBUGS_PLUGIN
 
     id("com.github.johnrengelman.shadow") version Plugin.SHADOW_JAR
 
@@ -13,16 +13,22 @@ plugins {
 }
 
 group = "com.github.bjoernpetersen"
-version = "0.1.0"
-
-spotbugs {
-    isIgnoreFailures = true
-    toolVersion = Plugin.SPOTBUGS_TOOL
-}
+version = "0.2.0"
 
 idea {
     module {
         isDownloadJavadoc = true
+    }
+}
+
+spotless {
+    kotlin {
+        ktlint()
+        endWithNewline()
+    }
+    kotlinGradle {
+        ktlint()
+        endWithNewline()
     }
 }
 
@@ -41,34 +47,45 @@ tasks {
 }
 
 dependencies {
-    implementation(
-        group = "io.github.microutils",
-        name = "kotlin-logging",
-        version = Lib.KOTLIN_LOGGING) {
-        exclude("org.slf4j")
-        exclude("org.jetbrains")
-        exclude("org.jetbrains.kotlin")
-    }
     compileOnly(
         group = "com.github.bjoernpetersen",
         name = "musicbot",
-        version = Lib.MUSICBOT)
+        version = Lib.MUSICBOT
+    ) {
+        isChanging = Lib.MUSICBOT.contains("SNAPSHOT")
+    }
 
-    testImplementation(kotlin("stdlib-jdk8"))
+    testImplementation(
+        group = "com.github.bjoernpetersen",
+        name = "musicbot",
+        version = Lib.MUSICBOT
+    )
     testRuntime(
         group = "org.slf4j",
         name = "slf4j-simple",
-        version = Lib.SLF4J)
+        version = Lib.SLF4J
+    )
     testImplementation(
         group = "org.junit.jupiter",
         name = "junit-jupiter-api",
-        version = Lib.JUNIT)
+        version = Lib.JUNIT
+    )
     testRuntime(
         group = "org.junit.jupiter",
         name = "junit-jupiter-engine",
-        version = Lib.JUNIT)
+        version = Lib.JUNIT
+    )
+}
+
+configurations.all {
+    resolutionStrategy.cacheChangingModulesFor(1, TimeUnit.MINUTES)
 }
 
 repositories {
     jcenter()
+    maven("https://oss.sonatype.org/content/repositories/snapshots") {
+        mavenContent {
+            snapshotsOnly()
+        }
+    }
 }

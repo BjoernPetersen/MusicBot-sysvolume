@@ -2,6 +2,10 @@
 
 Provides system master volume control by calling CLI commands.
 
+## Download
+
+[Download the latest master build here.](https://felixgail.github.io/CircleCIArtifactProvider/index.html?vcs-type=github&user=BjoernPetersen&project=MusicBot-sysvolume&build=latest&branch=master&filter=successful&path=dist/musicbot-sysvolume.jar&token=d51d6a959f65da3cce1d1f0a34f6ae83752f24ca)
+
 ## Config
 
 The CLI commands to access and change the master volume are highly system dependent.
