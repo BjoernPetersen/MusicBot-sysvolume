@@ -84,4 +84,3 @@ internal class SetVolume(command: List<String>, valueMode: ValueMode, volume: In
         return exitCode.await() == 0
     }
 }
-
