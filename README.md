@@ -24,7 +24,7 @@ The config should then look like this:
 | ---------- | -----
 | valueMode  | `Percent`
 | getCommand | `setvol report`
-| getPattern | `Volume = (\d+)`
+| getPattern | `Master volume level = (\d+)`
 | setCommand | `setvol <volume>`
 
 ### Linux/ALSA
